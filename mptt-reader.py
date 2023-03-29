@@ -103,12 +103,10 @@ class MPTTReader:
         return self.state[Register.VoltSupply3]
     
     @property
-    @update
     def power_in(self):
         return self.voltage_scaling * self.current_scaling * self.state[Register.InputPower] * 2**(-17)
     
     @property
-    @update
     def power_out(self):
         return self.voltage_scaling * self.current_scaling * self.state[Register.OutputPower] * 2**(-17)
 
