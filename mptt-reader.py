@@ -1,4 +1,6 @@
 from pymodbus.client import ModbusSerialClient
+from time import sleep
+from threading import Thread
 from enum import IntEnum
 
 ## Taken from : https://www.morningstarcorp.com/wp-content/uploads/technical-doc-tristar-mppt-modbus-specification-en.pdf
@@ -31,30 +33,29 @@ class Register(IntEnum):
     InputPower = 59
 
 
-## Updates the state of the registers before reading and making calculations
-def update(method):
-    def inner(ref):
-        if ref:
-            ref.state = ref.client.read_holding_registers(0, 88, 1).registers
-            return method(ref)
-    return inner
-
-
 # Establishes a serial connection on the provided port, the default is COM3. Change if needed.
 class MPTTReader:
-    def __init__(self, port: str= "COM3"):
+    def __init__(self, port: str="COM3", update_interval: float=0.5):
         self.client = ModbusSerialClient(port=port, baudrate=9600, method='rtu', timeout=1)
         self.client.connect()
         self.state: list[int] = []
         self.scaling_constant = 2**(-15)
+        self.update_interval = update_interval
+        self.__update_thread = Thread(target=self.__update)
+        self.__update_thread.start()
+
+
+    def __update(self):
+        while True:
+            self.state = self.client.read_holding_registers(0, 88, 1).registers
+            sleep(self.update_interval)
+            
 
     @property
-    @update
     def voltage_scaling(self):
         return self.state[Register.VoltScalingHi] + (self.state[Register.VoltScalingLo] / 2**16)
     
     @property
-    @update
     def current_scaling(self):
         return self.state[Register.CurrScalingHi] + (self.state[Register.CurrScalingLo] / 2**16)
     
@@ -83,22 +84,18 @@ class MPTTReader:
         return self.current_scaling * self.state[Register.ArrayCurrent] * self.scaling_constant
     
     @property
-    @update
     def heatsink_temp(self):
         return self.state[Register.HeatSinkTemp]
     
     @property
-    @update
     def rts_temp(self):
         return self.state[Register.RTSTemp]
     
     @property
-    @update
     def voltsupply12(self):
         return self.state[Register.VoltSupply12]
     
     @property
-    @update
     def voltsupply3(self):
         return self.state[Register.VoltSupply3]
     
@@ -111,6 +108,7 @@ class MPTTReader:
         return self.voltage_scaling * self.current_scaling * self.state[Register.OutputPower] * 2**(-17)
 
     def __del__(self):
+        self.__update_thread.join()
         self.client.close()
 
 
