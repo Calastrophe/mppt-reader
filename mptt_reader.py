@@ -51,6 +51,7 @@ class MPTTReader:
 class MPTTUpdater:
     def __init__(self, reader: MPTTReader, update_interval: float):
         self.reader = reader
+        self.update_interval = update_interval
         self.grab_overrides()
         self.__update_thread = Thread(self.__update)
         self.__update_thread.start()
@@ -64,6 +65,7 @@ class MPTTUpdater:
 
     def __update(self):
         while True:
+            assert(self.update_interval < 55)
             self.state = self.client.read_holding_registers(0, 94, 1).registers
             # See if ths multiple-write register works or not.
             self.reader.client.write_registers(Register.BatteryCurrentRegulation+1, [self.battery_current_regulation, self.battery_voltage_regulation, self.array_voltage_target, self.array_voltage_target_percentage], 1)
