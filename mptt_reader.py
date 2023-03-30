@@ -1,19 +1,22 @@
+import continuous_threading
 from pymodbus.client import ModbusSerialClient
 from mptt_constants import Register, SCALING_CONSTANT
 from time import sleep
-from threading import Thread
 
+# Configuration for continous threading...
+continuous_threading.set_allow_shutdown(True)
+continuous_threading.set_shutdown_timeout(0)
 
 
 
 # Establishes a serial connection on the provided port, the default is COM3. The update interval is when the register state is updated.
 class MPTTReader:
-    def __init__(self, port: str="COM3", update_interval: float=0.5):
+    def __init__(self, port: str="COM3", update_interval: float=1):
         self.state: list[int] = []
         self.client: ModbusSerialClient = ModbusSerialClient(port=port, baudrate=9600, method='rtu', timeout=1)
         self.client.connect()
-        self.overrides = MPTTOverrides(self)
         self.updater = MPTTUpdater(self, update_interval)
+        self.overrides = MPTTOverrides(self)
         self.battery = MPTTBattery(self)
         self.array = MPTTArray(self)
         self.utils = MPTTUtilities(self)
@@ -25,6 +28,9 @@ class MPTTReader:
     @property
     def current_scaling(self):
         return self.state[Register.CurrScalingHi] + (self.state[Register.CurrScalingLo] / 2**16)
+    
+    def turn_on(self):
+        __update_thread = continuous_threading.Thread(target=self.updater.update).start()
 
     def __del__(self):
         self.client.close()
@@ -34,30 +40,25 @@ class MPTTUpdater:
     def __init__(self, reader: MPTTReader, update_interval: float):
         self.reader = reader
         self.update_interval = update_interval
-        self.__update_thread = Thread(self.__update)
-        self.__update_thread.start()
+        self.reader.state = self.reader.client.read_holding_registers(0, 94, 1).registers
 
-
-    def __update(self):
+    def update(self):
         while True:
             assert(self.update_interval < 55)
-            self.state = self.client.read_holding_registers(0, 94, 1).registers
+            self.reader.state = self.reader.client.read_holding_registers(0, 94, 1).registers
             ## Update the values of the manually controlled variables, if we have them locked.
             self.reader.overrides.battery_current_regulation.update()
             self.reader.overrides.battery_voltage_regulation.update()
             self.reader.overrides.array_voltage_target.update()
             sleep(self.update_interval)
 
-    def __del__(self):
-        self.__update_thread.join()
-
 
 # A class to clearly hold the overrides.
 class MPTTOverrides:
     def __init__(self, reader: MPTTReader):
-        self.battery_voltage_regulation = MPTTOverride(reader, Register.BatteryVoltageRegulation, lambda x: (x / self.reader.voltage_scaling) / SCALING_CONSTANT)
+        self.battery_voltage_regulation = MPTTOverride(reader, Register.BatteryVoltageRegulation, lambda x: (x / reader.voltage_scaling) / SCALING_CONSTANT)
         self.battery_current_regulation = MPTTOverride(reader, Register.BatteryCurrentRegulation, lambda x: (x / 80) / SCALING_CONSTANT)
-        self.array_voltage_target = MPTTOverride(reader, Register.ArrayVoltageTarget, lambda x: (x / self.reader.voltage_scaling) / SCALING_CONSTANT)
+        self.array_voltage_target = MPTTOverride(reader, Register.ArrayVoltageTarget, lambda x: (x / reader.voltage_scaling) / SCALING_CONSTANT)
 
 
 # A class to help abstract the control of a manually controllable variable.
@@ -179,22 +180,20 @@ class MPTTUtilities:
     def power_out(self):
         return self.reader.voltage_scaling * self.reader.current_scaling * self.reader.state[Register.OutputPower] * 2**(-17)
 
-    
-
-
-
-
 
 
 if __name__ == "__main__":
     reader = MPTTReader("COM3")
-    print(reader.battery.voltage)
-    print(reader.battery.current)
-    print(reader.array.voltage)
-    print(reader.array.current)
-    print(reader.battery.maximum_voltage)
-    print(reader.battery.minimum_voltage)
-    print(reader.battery.remaining_battery)
+    reader.turn_on()
+    while True:
+        print(reader.battery.voltage)
+        print(reader.battery.current)
+        print(reader.array.voltage)
+        print(reader.array.current)
+        print(reader.battery.maximum_voltage)
+        print(reader.battery.minimum_voltage)
+        print(reader.battery.remaining_battery)
+        sleep(1)
     # reader.overrides.battery_voltage_regulation.set_value(3) # NOTICE: You haven't locked yet! You may have set the value, but not gotten a lock on the override.
     # reader.overrides.battery_voltage_regulation.lock() # Now, it will start updating with your given value and you can change it.
     # reader.overrides.battery_voltage_regulation.set_value(5) # If you set too high or a too low value, you could cause a fault!
