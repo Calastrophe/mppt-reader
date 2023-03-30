@@ -25,7 +25,7 @@ class MPTTReader:
     def current_scaling(self):
         return self.state[Register.CurrScalingHi] + (self.state[Register.CurrScalingLo] / 2**16)
     
-    ## OVERRIDES
+    ## OVERRIDES - MOVE TO BATTERY & ARRAY CLASSES LATER
     def set_batt_volt_reg(self, new_value: float):
         passed_value = (new_value / self.voltage_scaling) / SCALING_CONSTANT
         self.updater.battery_voltage_regulation = passed_value
@@ -33,6 +33,16 @@ class MPTTReader:
     def set_batt_curr_reg(self, new_value: float):
         passed_value = (new_value / 80) / SCALING_CONSTANT
         self.updater.battery_current_regulation = passed_value
+
+    def set_arr_volt_target(self, new_value: float):
+        passed_value = (new_value / self.voltage_scaling) / SCALING_CONSTANT
+        self.updater.array_voltage_target = passed_value
+
+    ## Percentage will overwrite the target, so just choose one.
+    def set_arr_volt_target_percent(self, new_value: float):
+        passed_value = (new_value / 100) / 2**(-16)
+        self.updater.array_voltage_target_percentage = passed_value
+
 
     def __del__(self):
         self.client.close()
@@ -46,7 +56,7 @@ class MPTTUpdater:
         self.__update_thread.start()
 
     def grab_overrides(self):
-        self.reader.state = self.client_read_holding_Register(0, 94, 1).registers
+        self.reader.state = self.reader.client.read_holding_registers(0, 92, 1)
         self.battery_voltage_regulation = self.reader.state[Register.BatteryVoltageRegulation]
         self.battery_current_regulation = self.reader.state[Register.BatteryCurrentRegulation]
         self.array_voltage_target = self.reader.state[Register.ArrayVoltageTarget]
@@ -55,16 +65,17 @@ class MPTTUpdater:
     def __update(self):
         while True:
             self.state = self.client.read_holding_registers(0, 94, 1).registers
-            ## Add one for the actual offset inside the registers because we are using array accessing normally
-            ## Maybe we could just write_registers(), but I'd have to read the source
-            self.reader.client.write_register(Register.BatteryCurrentRegulation+1, self.battery_current_regulation, 1)
-            self.reader.client.write_register(Register.BatteryVoltageRegulation+1, self.battery_voltage_regulation, 1)
-            self.reader.client.write_register(Register.ArrayVoltageTarget+1, self.array_voltage_target, 1)
-            self.reader.client.write_register(Register.ArrayVoltageTargetPercentage+1, self.array_voltage_target_percentage, 1)
+            # See if ths multiple-write register works or not.
+            self.reader.client.write_registers(Register.BatteryCurrentRegulation+1, [self.battery_current_regulation, self.battery_voltage_regulation, self.array_voltage_target, self.array_voltage_target_percentage], 1)
+            # self.reader.client.write_register(Register.BatteryCurrentRegulation+1, self.battery_current_regulation, 1)
+            # self.reader.client.write_register(Register.BatteryVoltageRegulation+1, self.battery_voltage_regulation, 1)
+            # self.reader.client.write_register(Register.ArrayVoltageTarget+1, self.array_voltage_target, 1)
+            # self.reader.client.write_register(Register.ArrayVoltageTargetPercentage+1, self.array_voltage_target_percentage, 1)
             sleep(self.update_interval)
 
     def __del__(self):
         self.__update_thread.join()
+
 
 class MPTTBattery:
     def __init__(self, reader: MPTTReader):
@@ -101,26 +112,28 @@ class MPTTBattery:
     @property
     def remaining_battery(self):
         return (self.terminal_voltage - self.minimum_voltage) / (self.maximum_voltage - self.minimum_voltage)
+    
 
 class MPTTArray:
     def __init__(self, reader: MPTTReader):
         self.reader = reader
 
     @property
-    def array_voltage(self):
+    def voltage(self):
         return self.reader.voltage_scaling * self.reader.state[Register.ArrayVolt] * SCALING_CONSTANT
     
     @property
-    def array_current(self):
+    def current(self):
         return self.reader.current_scaling * self.reader.state[Register.ArrayCurrent] * SCALING_CONSTANT
     
     @property
-    def array_voltage_target(self):
+    def voltage_target(self):
         return self.reader.state[Register.ArrayVoltageTarget] * self.reader.voltage_scaling * SCALING_CONSTANT
     
     @property
-    def array_voltage_target_percent(self):
+    def voltage_target_percent(self):
         return self.reader.state[Register.ArrayVoltageTargetPercentage] * 100 * 2**(-16)
+    
 
 class MPTTUtilities:
     def __init__(self, reader: MPTTReader):
@@ -148,11 +161,11 @@ class MPTTUtilities:
     
     @property
     def power_in(self):
-        return self.reader.voltage_scaling * self.reader.current_scaling * self.state[Register.InputPower] * 2**(-17)
+        return self.reader.voltage_scaling * self.reader.current_scaling * self.reader.state[Register.InputPower] * 2**(-17)
     
     @property
     def power_out(self):
-        return self.reader.voltage_scaling * self.reader.current_scaling * self.state[Register.OutputPower] * 2**(-17)
+        return self.reader.voltage_scaling * self.reader.current_scaling * self.reader.state[Register.OutputPower] * 2**(-17)
 
     
 
@@ -163,11 +176,10 @@ class MPTTUtilities:
 
 if __name__ == "__main__":
     reader = MPTTReader("COM3")
-    print(reader.battery_voltage)
-    print(reader.battery_terminal_voltage)
-    print(reader.battery_current)
-    print(reader.array_voltage)
-    print(reader.array_current)
-    print(reader.rts_temp)
-    print(reader.heatsink_temp)
-    print(reader.power_in)
+    print(reader.battery.voltage)
+    print(reader.battery.current)
+    print(reader.array.voltage)
+    print(reader.array.current)
+    print(reader.battery.maximum_voltage)
+    print(reader.battery.minimum_voltage)
+    print(reader.battery.remaining_battery)
