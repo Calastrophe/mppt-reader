@@ -12,6 +12,7 @@ class MPTTReader:
         self.state: list[int] = []
         self.client: ModbusSerialClient = ModbusSerialClient(port=port, baudrate=9600, method='rtu', timeout=1)
         self.client.connect()
+        self.overrides = MPTTOverrides(self)
         self.updater = MPTTUpdater(self, update_interval)
         self.battery = MPTTBattery(self)
         self.array = MPTTArray(self)
@@ -24,25 +25,6 @@ class MPTTReader:
     @property
     def current_scaling(self):
         return self.state[Register.CurrScalingHi] + (self.state[Register.CurrScalingLo] / 2**16)
-    
-    ## OVERRIDES - MOVE TO BATTERY & ARRAY CLASSES LATER
-    def set_batt_volt_reg(self, new_value: float):
-        passed_value = (new_value / self.voltage_scaling) / SCALING_CONSTANT
-        self.updater.battery_voltage_regulation = passed_value
-
-    def set_batt_curr_reg(self, new_value: float):
-        passed_value = (new_value / 80) / SCALING_CONSTANT
-        self.updater.battery_current_regulation = passed_value
-
-    def set_arr_volt_target(self, new_value: float):
-        passed_value = (new_value / self.voltage_scaling) / SCALING_CONSTANT
-        self.updater.array_voltage_target = passed_value
-
-    ## Percentage will overwrite the target, so just choose one.
-    def set_arr_volt_target_percent(self, new_value: float):
-        passed_value = (new_value / 100) / 2**(-16)
-        self.updater.array_voltage_target_percentage = passed_value
-
 
     def __del__(self):
         self.client.close()
@@ -52,31 +34,59 @@ class MPTTUpdater:
     def __init__(self, reader: MPTTReader, update_interval: float):
         self.reader = reader
         self.update_interval = update_interval
-        self.grab_overrides()
         self.__update_thread = Thread(self.__update)
         self.__update_thread.start()
 
-    def grab_overrides(self):
-        self.reader.state = self.reader.client.read_holding_registers(0, 92, 1)
-        self.battery_voltage_regulation = self.reader.state[Register.BatteryVoltageRegulation]
-        self.battery_current_regulation = self.reader.state[Register.BatteryCurrentRegulation]
-        self.array_voltage_target = self.reader.state[Register.ArrayVoltageTarget]
-        self.array_voltage_target_percentage = self.reader.state[Register.ArrayVoltageTargetPercentage]
 
     def __update(self):
         while True:
             assert(self.update_interval < 55)
             self.state = self.client.read_holding_registers(0, 94, 1).registers
-            # See if ths multiple-write register works or not.
-            self.reader.client.write_registers(Register.BatteryCurrentRegulation+1, [self.battery_current_regulation, self.battery_voltage_regulation, self.array_voltage_target, self.array_voltage_target_percentage], 1)
-            # self.reader.client.write_register(Register.BatteryCurrentRegulation+1, self.battery_current_regulation, 1)
-            # self.reader.client.write_register(Register.BatteryVoltageRegulation+1, self.battery_voltage_regulation, 1)
-            # self.reader.client.write_register(Register.ArrayVoltageTarget+1, self.array_voltage_target, 1)
-            # self.reader.client.write_register(Register.ArrayVoltageTargetPercentage+1, self.array_voltage_target_percentage, 1)
+            ## Update the values of the manually controlled variables, if we have them locked.
+            self.reader.overrides.battery_current_regulation.update()
+            self.reader.overrides.battery_voltage_regulation.update()
+            self.reader.overrides.array_voltage_target.update()
             sleep(self.update_interval)
 
     def __del__(self):
         self.__update_thread.join()
+
+
+# A class to clearly hold the overrides.
+class MPTTOverrides:
+    def __init__(self, reader: MPTTReader):
+        self.battery_voltage_regulation = MPTTOverride(reader, Register.BatteryVoltageRegulation, lambda x: (x / self.reader.voltage_scaling) / SCALING_CONSTANT)
+        self.battery_current_regulation = MPTTOverride(reader, Register.BatteryCurrentRegulation, lambda x: (x / 80) / SCALING_CONSTANT)
+        self.array_voltage_target = MPTTOverride(reader, Register.ArrayVoltageTarget, lambda x: (x / self.reader.voltage_scaling) / SCALING_CONSTANT)
+
+
+# A class to help abstract the control of a manually controllable variable.
+# Similar to a mutex, you have to release control and take control.
+# Make sure to use unlock() when you don't want to control the variable anymore! Otherwise, it'll be stuck at one number...
+# The third parameter is a lambda function which calculates the correct value. Relative referencing to objects is annoying, but avoids inheritance.
+class MPTTOverride:
+    def __init__(self, reader: MPTTReader, register: Register, formula):
+        self.reader = reader
+        self.__register = register+1 # Need to add one for the offset based off array-access.
+        self.__locked = False
+        self.__formula = formula
+        self.__held_value = self.__formula(-1)
+        self.__result_value = self.__formula(-1)
+
+    def lock(self):
+        self.__locked = True
+    
+    def set_value(self, new_value: float):
+        self.__held_value = self.__formula(new_value)
+
+    def update(self):
+        if self.__locked:
+            self.reader.client.write_register(self.__register, self.__held_value, 1)
+
+    def unlock(self):
+        self.__locked = False
+        self.reader.client.write_register(self.__register, self.__result_value, 1)
+
 
 
 class MPTTBattery:
@@ -185,3 +195,8 @@ if __name__ == "__main__":
     print(reader.battery.maximum_voltage)
     print(reader.battery.minimum_voltage)
     print(reader.battery.remaining_battery)
+    # reader.overrides.battery_voltage_regulation.set_value(3) # NOTICE: You haven't locked yet! You may have set the value, but not gotten a lock on the override.
+    # reader.overrides.battery_voltage_regulation.lock() # Now, it will start updating with your given value and you can change it.
+    # reader.overrides.battery_voltage_regulation.set_value(5) # If you set too high or a too low value, you could cause a fault!
+    # reader.overrides.battery_voltage_regulation.unlock() # Now it will return control to the slave, make sure to unlock or you will just keep the same value forever.
+
