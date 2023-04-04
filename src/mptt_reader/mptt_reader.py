@@ -1,6 +1,6 @@
 import continuous_threading
 from pymodbus.client import ModbusSerialClient
-from mptt_constants import Register, SCALING_CONSTANT
+from src.mptt_reader.mptt_constants import Register, SCALING_CONSTANT
 from time import sleep
 
 # Configuration for continous threading...

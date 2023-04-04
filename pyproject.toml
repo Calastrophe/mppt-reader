@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mptt_reader"
+version = "1.0.0"
+authors = [
+  { name="Calastrophe", email="vmxoperation@proton.me" },
+]
+description = "A framework for easily logging and modifying Tristar-MPTT-45 Solar Controllers over a serial connection."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ['pymodbus', 'pyserial', 'continuous_threading']
+classifiers = [
+    "Programming Language :: Python :: 3.10",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/Calastrophe/mptt-reader"
+"Bug Tracker" = "https://github.com/Calastrophe/mptt-reader/issues"
