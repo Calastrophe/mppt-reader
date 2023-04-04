@@ -20,6 +20,7 @@ class MPTTReader:
         self.battery = MPTTBattery(self)
         self.array = MPTTArray(self)
         self.utils = MPTTUtilities(self)
+        ## Move update thread here, potentially
 
     @property
     def voltage_scaling(self):
@@ -71,22 +72,22 @@ class MPTTOverride:
         self.__register = register+1 # Need to add one for the offset based off array-access.
         self.__locked = False
         self.__formula = formula
-        self.__held_value = self.__formula(-1)
-        self.__result_value = self.__formula(-1)
+        self.__value = self.__formula(-1)
+        self.__reset_value = self.__formula(-1)
 
     def lock(self):
         self.__locked = True
     
     def set_value(self, new_value: float):
-        self.__held_value = self.__formula(new_value)
+        self.__value = self.__formula(new_value)
 
     def update(self):
         if self.__locked:
-            self.reader.client.write_register(self.__register, self.__held_value, 1)
+            self.reader.client.write_register(self.__register, self.__value, 1)
 
     def unlock(self):
         self.__locked = False
-        self.reader.client.write_register(self.__register, self.__result_value, 1)
+        self.reader.client.write_register(self.__register, self.__reset_value, 1)
 
 
 
