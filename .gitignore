@@ -1,1 +1,3 @@
 mptt-venv
+dist
+mptt_reader.egg-info
