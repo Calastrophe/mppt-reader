@@ -16,9 +16,11 @@ class MPTTLogger:
 
     def __logging_function(self):
         with open(f"{self.fn}.csv", "w") as fd:
+            fd.write("TIME,")
             fd.write(",".join(var.name for var in self._callbacks) + "\n")
             while True:
                 values = []
+                fd.write(f"{datetime.now().strftime('%H:%M:%S')},")
                 for var in self._callbacks:
                     if "." in var:
                         owner_object, attr_name = var.split('.')

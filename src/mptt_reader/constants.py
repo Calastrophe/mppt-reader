@@ -22,8 +22,8 @@ class Variable(StrEnum):
     VOLT_SUPPLY_12 = "utils.voltsupply12",
     VOLT_SUPPLY_3 = "utils.voltsupply3",
     POWER_IN = "utils.power_in",
-    POWER_OUT = "utils.power_out"
-    
+    POWER_OUT = "utils.power_out",
+
 
 
 class Register(IntEnum):
