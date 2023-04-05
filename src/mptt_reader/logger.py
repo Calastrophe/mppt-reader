@@ -6,11 +6,11 @@ from time import sleep
 
 
 class MPTTLogger:
-    def __init__(self, mptt_reader: MPTTReader, initial_variables: list[Variable], output_name=None, update_interval=1):
+    def __init__(self, mptt_reader: MPTTReader, variables: list[Variable], file_name=None, update_interval=1):
         self.reader = mptt_reader
-        self._callbacks: list[Variable] = initial_variables
+        self._callbacks: list[Variable] = variables
         self.update_interval = update_interval
-        self.fn = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}" if output_name is None else output_name
+        self.fn = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}" if file_name is None else file_name
         __logging_thread = continuous_threading.Thread(target=self.__logging_function).start()
 
 
