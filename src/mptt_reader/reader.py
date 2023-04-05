@@ -20,7 +20,7 @@ class MPTTReader:
         self.battery = MPTTBattery(self)
         self.array = MPTTArray(self)
         self.utils = MPTTUtilities(self)
-        ## Move update thread here, potentially
+        __update_thread = continuous_threading.Thread(target=self.updater.update).start()
 
     @property
     def voltage_scaling(self):
@@ -29,9 +29,6 @@ class MPTTReader:
     @property
     def current_scaling(self):
         return self.state[Register.CurrScalingHi] + (self.state[Register.CurrScalingLo] / 2**16)
-    
-    def turn_on(self):
-        __update_thread = continuous_threading.Thread(target=self.updater.update).start()
 
     def __del__(self):
         self.client.close()

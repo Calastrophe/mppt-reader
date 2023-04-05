@@ -1,12 +1,15 @@
 from src.mptt_reader.reader import MPTTReader
+from src.mptt_reader.logger import MPTTLogger
+from src.mptt_reader.constants import Variable
 from time import sleep
 
 
 
 if __name__ == "__main__":
     reader = MPTTReader("COM3")
-    reader.turn_on()
+    logger = MPTTLogger(reader, [Variable.BATTERY_VOLTAGE, Variable.POWER_IN])
     while True:
+        print("-------------------------")
         print(reader.battery.voltage)
         print(reader.battery.current)
         print(reader.array.voltage)
@@ -14,6 +17,7 @@ if __name__ == "__main__":
         print(reader.battery.maximum_voltage)
         print(reader.battery.minimum_voltage)
         print(reader.battery.remaining_battery)
+        print(reader.array.voltage_target)
         sleep(1)
     # reader.overrides.battery_voltage_regulation.set_value(3) # NOTICE: You haven't locked yet! You may have set the value, but not gotten a lock on the override.
     # reader.overrides.battery_voltage_regulation.lock() # Now, it will start updating with your given value and you can change it.

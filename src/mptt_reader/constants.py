@@ -1,6 +1,30 @@
-from enum import IntEnum
+from enum import IntEnum, StrEnum
 
 SCALING_CONSTANT = 2**(-15)
+
+class Variable(StrEnum):
+    VOLTAGE_SCALING = "voltage_scaling",
+    CURRENT_SCALING = "current_scaling",
+    BATTERY_VOLTAGE = "battery.voltage",
+    BATTERY_TERMINAL_VOLTAGE = "battery.terminal_voltage",
+    BATTERY_MINIMUM_VOLTAGE = "battery.minimum_voltage",
+    BATTERY_MAXIMUM_VOLTAGE = "battery.maximum_voltage",
+    BATTERY_VOLTAGE_REGULATION = "battery.voltage_regulation",
+    BATTERY_CURRENT = "battery.current",
+    BATTERY_CURRENT_REGULATION = "battery.current_regulation",
+    REMAINING_BATTERY = "battery.remaining_battery",
+    ARRAY_VOLTAGE = "array.voltage",
+    ARRAY_CURRENT = "array.current",
+    ARRAY_VOLTAGE_TARGET = "array.voltage_target"
+    ARRAY_VOLTAGE_PERCENT = "array.voltage_target_percent",
+    HEATSINK_TEMPERATURE = "utils.heatsink_temp",
+    RTS_TEMPERATURE = "utils.rhs_temp",
+    VOLT_SUPPLY_12 = "utils.voltsupply12",
+    VOLT_SUPPLY_3 = "utils.voltsupply3",
+    POWER_IN = "utils.power_in",
+    POWER_OUT = "utils.power_out"
+    
+
 
 class Register(IntEnum):
     VoltScalingHi = 0,
