@@ -1,6 +1,6 @@
 import continuous_threading
 from pymodbus.client import ModbusSerialClient
-from .constants import Register, SCALING_CONSTANT, FAULTS, ALARMS
+from .constants import Register, SCALING_CONSTANT, FAULTS, ALARMS, CHARGE_STATE, LED_STATE
 from time import sleep
 
 # Configuration for continous threading...
@@ -198,6 +198,14 @@ class MPTTUtilities:
     @property
     def power_out(self):
         return self.reader.voltage_scaling * self.reader.current_scaling * self.reader.state[Register.OutputPower] * 2**(-17)
+    
+    @property
+    def led_state(self) -> str:
+        return LED_STATE[self.reader.state[Register.LEDState]]
+    
+    @property
+    def charge_state(self) -> str:
+        return CHARGE_STATE[self.reader.state[Register.ChargeState]]
     
 
     ## These bitfields are read in reverse to easily match an on-bit to its string counterpart from constants.

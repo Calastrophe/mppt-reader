@@ -17,6 +17,11 @@ FAULTS = ["Overcurrent", "FETs shorted", "software bug", "battery HVD", "array H
             "EEPROM retry limit", "Reserved", " Slave Control Timeout",
             "Fault 13", "Fault 14", "Fault 15", "Fault 16"]
 
+LED_STATE = ["LED_START", "LED_START2", "LED_BRANCH", "FAST GREEN BLINK", "SLOW GREEN BLINK", "GREEN BLINK, 1HZ",
+             "GREEN_LED", "UNDEFINED", "YELLOW_LED", "UNDEFINED", "BLINK_RED_LED", "RED_LED", "R-Y-G ERROR",
+             "R/Y-G ERROR", "R/G-Y ERROR", "R-Y ERROR (HTD)", "R-G ERROR (HVD)", "R/Y-G/Y ERROR", "G/Y/R ERROR",
+             "G/Y/R x 2"]
+
 
 class Variable(StrEnum):
     VOLTAGE_SCALING = "voltage_scaling",
@@ -72,6 +77,7 @@ class Register(IntEnum):
     AlarmLO = 47,
     DipswitchBits = 48,
     LEDState = 49,
+    ChargeState = 50,
     OutputPower = 58,
     InputPower = 59
     BatteryCurrentRegulation = 88,

@@ -21,6 +21,8 @@ if __name__ == "__main__":
         print(reader.utils.dipswitch_bitfield)
         print(reader.utils.alarm_bitfield)
         print(reader.utils.fault_bitfield)
+        print(reader.utils.charge_state)
+        print(reader.utils.led_state)
         print(reader.watchdog.alarms)
         print(reader.watchdog.faults)
         sleep(1)
