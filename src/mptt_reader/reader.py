@@ -1,6 +1,6 @@
 import continuous_threading
 from pymodbus.client import ModbusSerialClient
-from .constants import Register, SCALING_CONSTANT
+from .constants import Register, SCALING_CONSTANT, FAULTS, ALARMS
 from time import sleep
 
 # Configuration for continous threading...
@@ -11,7 +11,7 @@ continuous_threading.set_shutdown_timeout(0)
 
 # Establishes a serial connection on the provided port, the default is COM3. The update interval is when the register state is updated.
 class MPTTReader:
-    def __init__(self, port: str="COM3", update_interval: float=1):
+    def __init__(self, port: str="COM3", update_interval: float=1, watchdog_interval: float=5):
         self.state: list[int] = []
         self.client: ModbusSerialClient = ModbusSerialClient(port=port, baudrate=9600, method='rtu', timeout=1)
         self.client.connect()
@@ -20,7 +20,8 @@ class MPTTReader:
         self.battery = MPTTBattery(self)
         self.array = MPTTArray(self)
         self.utils = MPTTUtilities(self)
-        __update_thread = continuous_threading.Thread(target=self.updater.update).start()
+        self.watchdog = MPTTWatchdog(self, watchdog_interval)
+        _ = continuous_threading.Thread(target=self.updater.update).start()
 
     @property
     def voltage_scaling(self):
@@ -49,6 +50,19 @@ class MPTTUpdater:
             self.reader.overrides.battery_voltage_regulation.update()
             self.reader.overrides.array_voltage_target.update()
             sleep(self.update_interval)
+
+class MPTTWatchdog:
+    def __init__(self, reader: MPTTReader, watchdog_interval: float):
+        self.reader = reader
+        self.watchdog_interval = watchdog_interval
+        self.alarms, self.faults = ([], [])
+        _ = continuous_threading.Thread(target=self._watchdog_thread).start()
+
+    def _watchdog_thread(self):
+        while True:
+            self.faults: list[str] = [FAULTS[i] for i, bit in enumerate(self.reader.utils.fault_bitfield) if bit == '1']
+            self.alarms: list[str] = [ALARMS[i] for i, bit in enumerate(self.reader.utils.alarm_bitfield) if bit == '1']
+            sleep(self.watchdog_interval)
 
 
 # A class to clearly hold the overrides.
@@ -124,6 +138,16 @@ class MPTTBattery:
     def remaining_battery(self):
         return (self.terminal_voltage - self.minimum_voltage) / (self.maximum_voltage - self.minimum_voltage)
     
+    # Fahrenheit
+    @property
+    def temperature_f(self):
+        return (self.reader.state[Register.BatteryTemp] * 9/5) + 32
+    
+    # Celsius
+    @property
+    def temperature_c(self):
+        return self.reader.state[Register.BatteryTemp]
+    
 
 class MPTTArray:
     def __init__(self, reader: MPTTReader):
@@ -150,7 +174,6 @@ class MPTTUtilities:
     def __init__(self, reader: MPTTReader):
         self.reader = reader
     
-    ## TEMPERATURES
 
     @property
     def heatsink_temp(self):
@@ -159,8 +182,6 @@ class MPTTUtilities:
     @property
     def rts_temp(self):
         return self.reader.state[Register.RTSTemp]
-    
-    ## POWER-RELATED
 
     @property
     def voltsupply12(self):
@@ -177,4 +198,22 @@ class MPTTUtilities:
     @property
     def power_out(self):
         return self.reader.voltage_scaling * self.reader.current_scaling * self.reader.state[Register.OutputPower] * 2**(-17)
+    
 
+    ## These bitfields are read in reverse to easily match an on-bit to its string counterpart from constants.
+    @property
+    def alarm_bitfield(self):
+        return (_binarize(self.reader.state[Register.AlarmHI]) + _binarize(self.reader.state[Register.AlarmLO]))[::-1]
+    
+    @property
+    def fault_bitfield(self):
+        return _binarize(self.reader.state[Register.FaultBits])[::-1]
+    
+    @property
+    def dipswitch_bitfield(self):
+        return _binarize(self.reader.state[Register.DipswitchBits])[::-1]
+
+
+# Utility function to make bitfields
+def _binarize(num: int) -> str:
+    return ((bin(num)[2:]).zfill(16)) # 16 is the size of a word on this "computer"

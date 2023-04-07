@@ -2,6 +2,22 @@ from enum import IntEnum, StrEnum
 
 SCALING_CONSTANT = 2**(-15)
 
+CHARGE_STATE = ["START", "NIGHT_CHECK", "DISCONNECT", "NIGHT",
+                "FAULT", "MPPT", "ABSORPTION", "FLOAT", "EQUALIZE", "SLAVE"]
+
+ALARMS = ["RTS open", "RTS shorted", "RTS disconnected", "Heatsink temp sensor open",
+            "Heatsink temp sensor shorted", "High temperature current limit", "Current limit",
+            "Current offset", "Battery sense out of range", "Battery sense disconnected",
+            "Uncalibrated", "RTS miswire", "High voltage disconnect", "Undefined",
+            "system miswire", "MOSFET open", "P12 voltage off", "High input voltage current limit",
+            "ADC input max", "Controller was reset", "Alarm 21", "Alarm 22", "Alarm 23", "Alarm 24"]
+
+FAULTS = ["Overcurrent", "FETs shorted", "software bug", "battery HVD", "array HVD",
+            "settings switch changed", "custom settings edit", "RTS shorted", "RTS disconnected",
+            "EEPROM retry limit", "Reserved", " Slave Control Timeout",
+            "Fault 13", "Fault 14", "Fault 15", "Fault 16"]
+
+
 class Variable(StrEnum):
     VOLTAGE_SCALING = "voltage_scaling",
     CURRENT_SCALING = "current_scaling",
@@ -44,13 +60,18 @@ class Register(IntEnum):
     RefVoltage = 34
     HeatSinkTemp = 35,
     RTSTemp = 36,
-    BatteryRegTemp = 37,
+    BatteryTemp = 37,
     BatteryVoltage = 38,
     ChargingCurrent = 39,
     MinBatteryVolt = 40,
     MaxBatteryVolt = 41,
     HourmeterHI = 42,
     HourmeterLO = 43,
+    FaultBits = 44,
+    AlarmHI = 46,
+    AlarmLO = 47,
+    DipswitchBits = 48,
+    LEDState = 49,
     OutputPower = 58,
     InputPower = 59
     BatteryCurrentRegulation = 88,
