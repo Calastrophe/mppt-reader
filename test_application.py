@@ -1,13 +1,13 @@
-from src.mptt_reader.reader import MPTTReader
-from src.mptt_reader.logger import MPTTLogger
-from src.mptt_reader.constants import Variable
+from src.mppt_reader.reader import MPPTReader
+from src.mppt_reader.logger import MPPTLogger
+from src.mppt_reader.constants import Variable
 from time import sleep
 
 
 
 if __name__ == "__main__":
-    reader = MPTTReader("COM3")
-    # logger = MPTTLogger(reader, [Variable.BATTERY_VOLTAGE, Variable.POWER_IN])
+    reader = MPPTReader("COM3")
+    logger = MPPTLogger(reader, [Variable.BATTERY_VOLTAGE, Variable.POWER_IN])
     while True:
         print("-------------------------")
         print(reader.battery.voltage)
