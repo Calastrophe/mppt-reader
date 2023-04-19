@@ -1,12 +1,12 @@
 import continuous_threading
-from .reader import MPTTReader
+from .reader import MPPTReader
 from .constants import Variable
 from datetime import datetime
 from time import sleep
 
 
-class MPTTLogger:
-    def __init__(self, mptt_reader: MPTTReader, variables: list[Variable], file_name=None, update_interval=1):
+class MPPTLogger:
+    def __init__(self, mptt_reader: MPPTReader, variables: list[Variable], file_name=None, update_interval=1):
         self.reader = mptt_reader
         self._callbacks: list[Variable] = variables
         self.update_interval = update_interval

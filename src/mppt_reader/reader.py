@@ -10,17 +10,17 @@ continuous_threading.set_shutdown_timeout(0)
 
 
 # Establishes a serial connection on the provided port, the default is COM3. The update interval is when the register state is updated.
-class MPTTReader:
+class MPPTReader:
     def __init__(self, port: str="COM3", update_interval: float=1, watchdog_interval: float=5):
         self.state: list[int] = []
         self.client: ModbusSerialClient = ModbusSerialClient(port=port, baudrate=9600, method='rtu', timeout=1)
         self.client.connect()
-        self.updater = MPTTUpdater(self, update_interval)
-        self.overrides = MPTTOverrides(self)
-        self.battery = MPTTBattery(self)
-        self.array = MPTTArray(self)
-        self.utils = MPTTUtilities(self)
-        self.watchdog = MPTTWatchdog(self, watchdog_interval)
+        self.updater = MPPTUpdater(self, update_interval)
+        self.overrides = MPPTOverrides(self)
+        self.battery = MPPTBattery(self)
+        self.array = MPPTArray(self)
+        self.utils = MPPTUtilities(self)
+        self.watchdog = MPPTWatchdog(self, watchdog_interval)
         _ = continuous_threading.Thread(target=self.updater.update).start()
 
     @property
@@ -35,8 +35,8 @@ class MPTTReader:
         self.client.close()
 
 
-class MPTTUpdater:
-    def __init__(self, reader: MPTTReader, update_interval: float):
+class MPPTUpdater:
+    def __init__(self, reader: MPPTReader, update_interval: float):
         self.reader = reader
         self.update_interval = update_interval
         self.reader.state = self.reader.client.read_holding_registers(0, 94, 1).registers
@@ -51,8 +51,8 @@ class MPTTUpdater:
             self.reader.overrides.array_voltage_target.update()
             sleep(self.update_interval)
 
-class MPTTWatchdog:
-    def __init__(self, reader: MPTTReader, watchdog_interval: float):
+class MPPTWatchdog:
+    def __init__(self, reader: MPPTReader, watchdog_interval: float):
         self.reader = reader
         self.watchdog_interval = watchdog_interval
         self.alarms, self.faults = ([], [])
@@ -66,19 +66,19 @@ class MPTTWatchdog:
 
 
 # A class to clearly hold the overrides.
-class MPTTOverrides:
-    def __init__(self, reader: MPTTReader):
-        self.battery_voltage_regulation = MPTTOverride(reader, Register.BatteryVoltageRegulation, lambda x: (x / reader.voltage_scaling) / SCALING_CONSTANT)
-        self.battery_current_regulation = MPTTOverride(reader, Register.BatteryCurrentRegulation, lambda x: (x / 80) / SCALING_CONSTANT)
-        self.array_voltage_target = MPTTOverride(reader, Register.ArrayVoltageTarget, lambda x: (x / reader.voltage_scaling) / SCALING_CONSTANT)
+class MPPTOverrides:
+    def __init__(self, reader: MPPTReader):
+        self.battery_voltage_regulation = MPPTOverride(reader, Register.BatteryVoltageRegulation, lambda x: (x / reader.voltage_scaling) / SCALING_CONSTANT)
+        self.battery_current_regulation = MPPTOverride(reader, Register.BatteryCurrentRegulation, lambda x: (x / 80) / SCALING_CONSTANT)
+        self.array_voltage_target = MPPTOverride(reader, Register.ArrayVoltageTarget, lambda x: (x / reader.voltage_scaling) / SCALING_CONSTANT)
 
 
 # A class to help abstract the control of a manually controllable variable.
 # Similar to a mutex, you have to release control and take control.
 # Make sure to use unlock() when you don't want to control the variable anymore! Otherwise, it'll be stuck at one number...
 # The third parameter is a lambda function which calculates the correct value. Relative referencing to objects is annoying, but avoids inheritance.
-class MPTTOverride:
-    def __init__(self, reader: MPTTReader, register: Register, formula):
+class MPPTOverride:
+    def __init__(self, reader: MPPTReader, register: Register, formula):
         self.reader = reader
         self.__register = register+1 # Need to add one for the offset based off array-access.
         self.__locked = False
@@ -102,8 +102,8 @@ class MPTTOverride:
 
 
 
-class MPTTBattery:
-    def __init__(self, reader: MPTTReader):
+class MPPTBattery:
+    def __init__(self, reader: MPPTReader):
         self.reader = reader
 
     @property
@@ -149,8 +149,8 @@ class MPTTBattery:
         return self.reader.state[Register.BatteryTemp]
     
 
-class MPTTArray:
-    def __init__(self, reader: MPTTReader):
+class MPPTArray:
+    def __init__(self, reader: MPPTReader):
         self.reader = reader
 
     @property
@@ -170,8 +170,8 @@ class MPTTArray:
         return self.reader.state[Register.ArrayVoltageTargetPercentage] * 100 * 2**(-16)
     
 
-class MPTTUtilities:
-    def __init__(self, reader: MPTTReader):
+class MPPTUtilities:
+    def __init__(self, reader: MPPTReader):
         self.reader = reader
     
 
