@@ -1,14 +1,23 @@
 # MPPT-Reader
 
-A work in progress way to quickly read from an TRISTAR-MPPT-45. Soon there will be added features to logging the data to unique data formats.
+A quick and easy framework for data-logging and interfacing with a Tristar-MPPT-45 Solar Controller over a serial connection.
 
-If you use the tool, please leave a star, so others can find it too in their search.
+You can download the library through pip with `pip install mppt_reader`
 
-Use `pip install mppt_reader` to download the library.
+To directly interface with the solar controller, use the `MPPTReader` class. It provides access to *most* variables, even if not it is easy to add.
+Additionally, if you want to log certain variables, use the `MPPTLogger` class and pass it a MPPTReader instance.
 
-If you want to just read and modify the MPPT-reader in a pythonic way without logging variables, use `MPPTReader` class.
+### Overrides
+This library allows for you to change regulations in the solar controller, which relate to voltage targets. To do so, you need to set a value.
 
-If you want to log variables, you can just take your `MPPTReader` class and pass it into an `MPPTLogger` instance.
+Initially, the override is `unlocked`, which means that the value you set isn't being written. To have your value written, you need to call `.lock()` on the override.
+
+You can change the value without unlocking, but its important to remember that you are in control of the value until you call `.unlock()`. After unlocking, it returns control back to the solar controller.
+
+##### Addendum for Overrides
+If you were to lock an override and your software crash, the values will still be written to the solar controller, but after 60 seconds - a fault is thrown and values taken over by the solar controller again.
+
+For this reason, you can't set `update_interval` of MPPTReader greater than 55.
 
 ```py
 from mppt_reader.reader import MPPTReader
