@@ -10,12 +10,12 @@ Additionally, if you want to log certain variables, use the `MPPTLogger` class a
 ### Overrides
 This library allows for you to change regulations in the solar controller, which relate to voltage targets. To do so, you need to set a value.
 
-Initially, the override is `unlocked`, which means that the value you set isn't being written. To have your value written, you need to call `.lock()` on the override.
+Initially, the override is unlocked, which means that the value you set isn't being written. To have your value written, you need to call `.lock()` on the override.
 
 You can change the value without unlocking, but its important to remember that you are in control of the value until you call `.unlock()`. After unlocking, it returns control back to the solar controller.
 
 ##### Addendum for Overrides
-If you were to lock an override and your software crash, the values will still be written to the solar controller, but after 60 seconds - a fault is thrown and values taken over by the solar controller again.
+If you were to lock an override and your software crashes, the values will still be written to the solar controller, but after 60 seconds - a fault is thrown and values are taken over by the solar controller again.
 
 For this reason, you can't set `update_interval` of MPPTReader greater than 55.
 
